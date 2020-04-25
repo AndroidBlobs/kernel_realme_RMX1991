@@ -847,8 +847,10 @@ static void process_tzcb_req(void *buf, size_t buf_len, struct file **arr_filp)
 
 	cb_req = kzalloc(buf_len, GFP_KERNEL);
 	if (!cb_req) {
-		ret =  OBJECT_ERROR_KMEM;
-		goto out;
+		/* we need to return error to caller so fill up result */
+		cb_req = buf;
+		cb_req->result = OBJECT_ERROR_KMEM;
+		return;
 	}
 	memcpy(cb_req, buf, buf_len);
 
@@ -907,9 +909,11 @@ out:
 			release_tzhandle_locked(cb_req->hdr.tzhandle);
 		}
 	}
-	hash_del(&cb_txn->hash);
-	memcpy(buf, cb_req, buf_len);
-	kref_put(&cb_txn->ref_cnt, delete_cb_txn);
+	if (cb_txn) {
+		hash_del(&cb_txn->hash);
+		memcpy(buf, cb_req, buf_len);
+		kref_put(&cb_txn->ref_cnt, delete_cb_txn);
+	}
 	mutex_unlock(&g_smcinvoke_lock);
 }
 
@@ -1051,6 +1055,18 @@ static int prepare_send_scm_msg(const uint8_t *in_buf, size_t in_buf_len,
 		 */
 		if (desc.ret[0] != SMCINVOKE_RESULT_INBOUND_REQ_NEEDED)
 			break;
+
+		/*
+		* At this point we are convinced it is an inbnd req but it is
+		* possible that it is a resp to inbnd req that has failed and
+		* returned an err. Ideally scm_call should have returned err
+		* but err comes in ret[1]. So check that out otherwise it
+		* could cause infinite loop.
+		*/
+		if (req->result && desc.ret[0] == SMCINVOKE_RESULT_INBOUND_REQ_NEEDED) {
+		ret = req->result;
+		break;
+		}
 
 		dmac_inv_range(out_buf, out_buf + out_buf_len);
 
