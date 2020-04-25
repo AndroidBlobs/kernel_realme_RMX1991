@@ -64,6 +64,7 @@
 #define CREATE_TRACE_POINTS
 #include "trace/lowmemorykiller.h"
 
+
 /* to enable lowmemorykiller */
 static int enable_lmk = 1;
 module_param_named(enable_lmk, enable_lmk, int, 0644);
@@ -156,10 +157,10 @@ enum {
 	VMPRESSURE_ADJUST_NORMAL,
 };
 
+
 static int adjust_minadj(short *min_score_adj)
 {
 	int ret = VMPRESSURE_NO_ADJUST;
-
 	if (enable_adaptive_lmk != ADAPTIVE_LMK_ENABLED)
 		return 0;
 
@@ -171,6 +172,10 @@ static int adjust_minadj(short *min_score_adj)
 			ret = VMPRESSURE_ADJUST_NORMAL;
 		*min_score_adj = adj_max_shift;
 	}
+
+
+
+
 	atomic_set(&shift_adj, 0);
 
 	return ret;
@@ -434,6 +439,7 @@ void tune_lmk_param(int *other_free, int *other_file, struct shrink_control *sc)
 	}
 }
 
+
 /*
  * Return the percent of memory which gfp_mask is allowed to allocate from.
  * CMA memory is assumed to be a small percent and is not considered.
@@ -628,6 +634,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 		}
 		task_unlock(selected);
 		trace_lowmemory_kill(selected, cache_size, cache_limit, free);
+
 		lowmem_print(1, "Killing '%s' (%d) (tgid %d), adj %hd,\n"
 			"to free %ldkB on behalf of '%s' (%d) because\n"
 			"cache %ldkB is below limit %ldkB for oom score %hd\n"
@@ -653,8 +660,8 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 			(long)(PAGE_SIZE / 1024),
 			sc->gfp_mask);
 
+
 		if (lowmem_debug_level >= 2 && selected_oom_score_adj == 0) {
-			show_mem(SHOW_MEM_FILTER_NODES, NULL);
 			show_mem_call_notifiers();
 			dump_tasks(NULL, NULL);
 		}
@@ -703,6 +710,7 @@ static int lmk_hotplug_callback(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
+
 static struct shrinker lowmem_shrinker = {
 	.scan_objects = lowmem_scan,
 	.count_objects = lowmem_count,
@@ -714,6 +722,7 @@ static struct notifier_block lmk_memory_callback_nb = {
 	.priority = 0,
 };
 
+
 static int __init lowmem_init(void)
 {
 	register_shrinker(&lowmem_shrinker);
@@ -723,6 +732,7 @@ static int __init lowmem_init(void)
 	return 0;
 }
 device_initcall(lowmem_init);
+
 
 #ifdef CONFIG_ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES
 static short lowmem_oom_adj_to_oom_score_adj(short oom_adj)
@@ -818,4 +828,5 @@ module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
 			 S_IRUGO | S_IWUSR);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
 module_param_named(lmk_fast_run, lmk_fast_run, int, S_IRUGO | S_IWUSR);
+
 

@@ -931,6 +931,12 @@ static int geni_i2c_probe(struct platform_device *pdev)
 				   gi2c->irq, ret);
 		return ret;
 	}
+
+#ifdef VENDOR_EDIT
+/*xing.xiong@BSP.Kernel.Driver, 2019/08/29, Add for print i2c irq number*/
+	dev_info(gi2c->dev, "gi2c irq: %d name: %s\n", gi2c->irq, pdev->dev.of_node->full_name);
+#endif
+
 	disable_irq(gi2c->irq);
 	i2c_set_adapdata(&gi2c->adap, gi2c);
 	gi2c->adap.dev.parent = gi2c->dev;
