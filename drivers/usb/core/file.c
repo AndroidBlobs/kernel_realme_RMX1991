@@ -193,22 +193,23 @@ int usb_register_dev(struct usb_interface *intf,
 		intf->minor = minor;
 		break;
 	}
-	up_write(&minor_rwsem);
-	if (intf->minor < 0)
-		return -EXFULL;
 
-	/* create a usb class device for this usb interface */
+	if (intf->minor < 0) {
+		up_write(&minor_rwsem);
+ 		return -EXFULL;
+	}
+
+        /* create a usb class device for this usb interface */
 	snprintf(name, sizeof(name), class_driver->name, minor - minor_base);
 	intf->usb_dev = device_create(usb_class->class, &intf->dev,
 				      MKDEV(USB_MAJOR, minor), class_driver,
 				      "%s", kbasename(name));
 	if (IS_ERR(intf->usb_dev)) {
-		down_write(&minor_rwsem);
 		usb_minors[minor] = NULL;
 		intf->minor = -1;
-		up_write(&minor_rwsem);
 		retval = PTR_ERR(intf->usb_dev);
 	}
+	up_write(&minor_rwsem);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(usb_register_dev);

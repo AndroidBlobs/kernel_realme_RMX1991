@@ -294,9 +294,11 @@ void dwc3_gadget_del_and_unmap_request(struct dwc3_ep *dep,
 	if (req->request.status == -EINPROGRESS)
 		req->request.status = status;
 
-	if (req->trb)
+	if (req->trb) {
+		dbg_ep_unmap(dep->number, req);
 		usb_gadget_unmap_request_by_dev(dwc->sysdev,
 				&req->request, req->direction);
+	}
 
 	req->trb = NULL;
 	trace_dwc3_gadget_giveback(req);
@@ -1369,6 +1371,7 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 		else
 			dwc3_prepare_one_trb_linear(dep, req);
 
+		dbg_ep_map(dep->number, req);
 		if (!dwc3_calc_trbs_left(dep))
 			return;
 	}
@@ -1532,6 +1535,7 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 
 	list_add_tail(&req->list, &dep->pending_list);
 
+	dbg_ep_queue(dep->number, req);
 	/*
 	 * NOTICE: Isochronous endpoints should NEVER be prestarted. We must
 	 * wait for a XferNotReady event so we will know what's the current
@@ -1708,7 +1712,7 @@ static int dwc3_gadget_ep_dequeue(struct usb_ep *ep,
 	}
 
 out1:
-	dbg_event(dep->number, "DEQUEUE", 0);
+	dbg_ep_dequeue(dep->number, req);
 	/* giveback the request */
 	dep->queued_requests--;
 	dwc3_gadget_giveback(dep, req, -ECONNRESET);
@@ -2069,10 +2073,20 @@ static int dwc3_gadget_set_selfpowered(struct usb_gadget *g,
 	return 0;
 }
 
+#ifdef VENDOR_EDIT
+/* Yichun.Chen  PSW.BSP.CHG  2019-08-07  for detect CDP */
+#define DWC3_SOFT_RESET_TIMEOUT		10 /* 10 msec */
+#endif
+
 static int dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on, int suspend)
 {
 	u32			reg, reg1;
 	u32			timeout = 1500;
+
+#ifdef VENDOR_EDIT
+/* Yichun.Chen  PSW.BSP.CHG  2019-08-07  for detect CDP */
+	ktime_t start, diff;
+#endif
 
 	dbg_event(0xFF, "run_stop", is_on);
 	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
@@ -2084,6 +2098,27 @@ static int dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on, int suspend)
 
 		if (dwc->revision >= DWC3_REVISION_194A)
 			reg &= ~DWC3_DCTL_KEEP_CONNECT;
+
+#ifdef VENDOR_EDIT
+/* Yichun.Chen  PSW.BSP.CHG  2019-08-07  for detect CDP */
+		start = ktime_get();
+		/* issue device SoftReset */
+		dwc3_writel(dwc->regs, DWC3_DCTL, reg | DWC3_DCTL_CSFTRST);
+		do {
+			reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+			if (!(reg & DWC3_DCTL_CSFTRST))
+				break;
+
+			diff = ktime_sub(ktime_get(), start);
+			/* poll for max. 10ms */
+			if (ktime_to_ms(diff) > DWC3_SOFT_RESET_TIMEOUT) {
+				printk_ratelimited(KERN_ERR
+					"%s:core Reset Timed Out\n", __func__);
+				break;
+			}
+			cpu_relax();
+		} while (true);
+#endif
 
 		dwc3_event_buffers_setup(dwc);
 		__dwc3_gadget_start(dwc);
