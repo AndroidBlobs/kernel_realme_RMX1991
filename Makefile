@@ -438,6 +438,127 @@ KBUILD_CFLAGS_MODULE  := -DMODULE
 KBUILD_LDFLAGS_MODULE := -T $(srctree)/scripts/module-common.lds
 GCC_PLUGINS_CFLAGS :=
 
+
+
+#ifdef VENDOR_EDIT
+#Haiping.Zhong@PSW.AD.BuildConfig.BaseConfig.0, 2019/01/08, Add for build root disable dm verity
+ifeq ($(OPPO_BUILD_ROOT_DISABLE_DM_VERITY),true)
+    KBUILD_CFLAGS += -DOPPO_BUILD_ROOT_DISABLE_DM_VERITY
+endif
+#endif /* VENDOR_EDIT */
+
+#ifdef VENDOR_EDIT
+#xing.xing@BSP.Kernel.Driver, 2019/03/28, Add for OPPO Macro
+#use OPPO_AGING_BUILD for aging version, use OPPO_RELEASE_BUILD for release version
+KBUILD_CFLAGS +=   -DVENDOR_EDIT
+KBUILD_CPPFLAGS += -DVENDOR_EDIT
+CFLAGS_KERNEL +=   -DVENDOR_EDIT
+CFLAGS_MODULE +=   -DVENDOR_EDIT
+
+ifeq ($(OPPO_HIGH_TEMP_VERSION),true)
+KBUILD_CFLAGS += -DCONFIG_HIGH_TEMP_VERSION
+KBUILD_CPPFLAGS += -DCONFIG_HIGH_TEMP_VERSION
+endif
+
+ifneq ($(SPECIAL_OPPO_CONFIG),1)
+ifeq ($(filter release cts,$(OPPO_BUILD_TYPE)),)
+ifeq ($(filter cmcctest cmccfield allnetcttest,$(NET_BUILD_TYPE)),)
+KBUILD_CFLAGS += -DCONFIG_OPPO_DAILY_BUILD
+endif
+endif
+endif
+
+ifneq ($(filter release cts,$(OPPO_BUILD_TYPE)),)
+KBUILD_CFLAGS += -DOPPO_RELEASE_BUILD
+endif
+
+ifeq ($(CONFIDENTIAL_VERSION),1)
+KBUILD_CFLAGS += -DCONFIG_CONFIDENTIAL_VERSION
+endif
+
+ifeq ($(SPECIAL_OPPO_CONFIG),1)
+KBUILD_CFLAGS += -DCONFIG_OPPO_SPECIAL_BUILD
+KBUILD_CFLAGS += -DOPPO_AGING_BUILD
+endif
+
+ifeq ($(NET_BUILD_TYPE),cmcctest)
+KBUILD_CFLAGS += -DOPPO_CMCC_TEST
+endif
+ifeq ($(NET_BUILD_TYPE),cmccfield)
+KBUILD_CFLAGS += -DOPPO_CMCC_TEST
+endif
+ifeq ($(NET_BUILD_TYPE),cmcc)
+KBUILD_CFLAGS += -DOPPO_CMCC_MP
+endif
+ifeq ($(NET_BUILD_TYPE),cutest)
+KBUILD_CFLAGS += -DOPPO_CU_TEST
+endif
+ifeq ($(NET_BUILD_TYPE),cu)
+KBUILD_CFLAGS += -DOPPO_CU_CLIENT
+endif
+ifeq ($(NET_BUILD_TYPE),cmcctest_dm)
+KBUILD_CFLAGS += -DOPPO_CMCC_TEST
+endif
+ifeq ($(OPPO_BUILD_TYPE),cta)
+KBUILD_CFLAGS += -DOPPO_CTA_FLAG
+KBUILD_CPPFLAGS += -DOPPO_CTA_FLAG
+endif
+#endif /*VENDOR_EDIT*/
+
+#ifdef VENDOR_EDIT
+#Bin.Yan@PSW.AD.BuildConfig.BaseConfig.1068615, 2017/08/28,Add for disallow system remount
+ifneq ($(SPECIAL_OPPO_CONFIG),1)
+ifneq ($(SPECIAL_OPPO_PERFORMANCE),1)
+    ifneq ($(filter release,$(OPPO_BUILD_TYPE)),)
+        ifneq ($(OPPO_ALLOW_KEY_INTERFACES),true)
+            ifeq ($(filter allnetcttest allnetcmcctest allnetcmccfield allnetctfield,$(NET_BUILD_TYPE)),)
+                KBUILD_CFLAGS += -DOPPO_DISALLOW_KEY_INTERFACES
+            endif
+        endif
+    endif
+endif
+endif
+#endif /* VENDOR_EDIT */
+
+#ifdef VENDOR_EDIT
+#Wen.Luo@Bsp.Kernel.Stability, 2018/12/05, Add for Debug Config, slub/kmemleak/kasan config
+ifeq ($(OPPO_SLUB_CONFIG),1)
+OPPO_SLUB_TEST := true
+endif
+
+ifeq ($(OPPO_KASAN_CONFIG),1)
+OPPO_KASAN_TEST := true
+#OPPO_SLUB_TEST := true
+endif
+
+ifeq ($(OPPO_KMEMLEAK_CONFIG),1)
+OPPO_KMEMLEAK_TEST := true
+OPPO_SLUB_TEST := true
+endif
+
+#Wen.Luo@Bsp.Kernel.Stability, 2018/12/05, Before agingtest enable slub debug except release
+ifneq ($(SPECIAL_OPPO_CONFIG),1)
+OPPO_SLUB_TEST := true
+endif
+
+ifeq ($(SPECIAL_OPPO_CONFIG),1)
+OPPO_AGING_TEST := true
+endif
+
+ifeq ($(BUILD_CONFIG),release)
+    ifneq ($(SPECIAL_OPPO_CONFIG),1)
+        OPPO_SLUB_TEST :=
+        OPPO_KASAN_TEST :=
+        OPPO_KMEMLEAK_TEST :=
+        OPPO_AGING_TEST :=
+    endif
+endif
+#endif
+
+#ifdef VENDOR_EDIT
+#Wen.Luo@Bsp.Kernel.Stability, 2018/12/05, Add for aging test, slub debug config
+export OPPO_SLUB_TEST OPPO_KASAN_TEST OPPO_KMEMLEAK_TEST OPPO_AGING_TEST
+#endif
 export ARCH SRCARCH CONFIG_SHELL HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC
 export CPP AR NM STRIP OBJCOPY OBJDUMP HOSTLDFLAGS HOST_LOADLIBES
 export MAKE AWK GENKSYMS INSTALLKERNEL PERL PYTHON UTS_MACHINE
